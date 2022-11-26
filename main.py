@@ -9,6 +9,7 @@ colors = {0: 'white', 1: 'blue', 2: 'green', 3: 'yellow', 4: 'purple', 5: 'grey'
 
 
 class MinesMixin:
+    buttons = []
 
     @staticmethod
     def get_colors_by_count_mines(button):
@@ -26,6 +27,15 @@ class MinesMixin:
         MyWindow.IS_GAME_OVER = True
         showinfo('Game Over!', 'Ви програли')
         self.show_all_mines()
+
+    @staticmethod
+    def check_count_mines(count: int, value: int):
+        """
+        Метод, який перевіряє кількість мін, введених користувачем, мін не може бути більше, ніж
+        аргумент value
+        """
+        if count > value:
+            return showerror('Помилка!', "Введена надто велика кількість мін")
 
     def show_all_mines(self):
         """
@@ -64,7 +74,7 @@ class MinesMixin:
         return numbers_list[:MyWindow.COUNT_MINES]
 
 
-class MyButton(tk.Button):
+class MyButton(tk.Button, MinesMixin):
     """
     Клас,який перевизначає вбудований клас Button
     """
@@ -98,31 +108,6 @@ class MyButton(tk.Button):
                 self.breadth_first_search(clicked_button)
         self.get_button_config(clicked_button)
 
-    def breadth_first_search(self, button):
-        queue = [button]
-        while queue:
-            current_button = queue.pop()
-            if current_button.count_mines:
-                self.get_colors_by_count_mines(current_button)
-            else:
-                current_button.config(text='')
-            self.get_button_config(current_button)
-            if not current_button.count_mines:
-                x, y = current_button.x, current_button.y
-                self.bypass_in_width(x, y, queue)
-
-    def bypass_in_width(self, x, y, q):
-        """
-        Функція,яка здійснює обхід в ширину для кнопок і додає їх у чергу,якщо вони задовільняють
-         певну умову
-        """
-        for dx in MyWindow.POSSIBLE_COORDINATE_CHOICE:
-            for dy in MyWindow.POSSIBLE_COORDINATE_CHOICE:
-                next_button = self.buttons[x + dx][y + dy]
-                if not next_button.is_open and 1 <= next_button.x <= MyWindow.ROWS and \
-                        1 <= next_button.y <= MyWindow.COLUMNS and next_button not in q:
-                    q.append(next_button)
-
     @staticmethod
     def get_button_config(button, state: str = 'disabled', relief: callable = tk.SUNKEN):
         button.is_open = True
@@ -132,6 +117,14 @@ class MyButton(tk.Button):
     @abstractmethod
     def button_first_click(self, clicked_button):
         pass
+
+    @staticmethod
+    def create_buttons(window: callable, text: str, command: callable):
+        """
+        Метод, який створює об'єкт 'кнопка', задаючи їх вікно, на якому її потрібно розмістити,
+        текст, який буде написаний на ній і метод,який буде спрацьовувати при натисканні на неї
+        """
+        return tk.Button(window, text=text, command=command)
 
     def __repr__(self):
         return f'Button {self.x} {self.y} {self.IS_MINE} {self.number}'
@@ -187,17 +180,6 @@ class MyWindow(MyButton, MinesMixin):
         self.print_buttons_on_console()
         MyWindow.IS_FIRST_CLICK = False
 
-    def select_neighbours_for_ceil(self, i: int, j: int, count_mines=0):
-        """
-        Метод,який здійснює підрахунок кількості мін навколо кожної кнопки
-        """
-        for row_dx in MyWindow.POSSIBLE_COORDINATE_CHOICE:
-            for col_dx in MyWindow.POSSIBLE_COORDINATE_CHOICE:
-                neighbour = self.buttons[i + row_dx][j + col_dx]
-                if neighbour.IS_MINE:
-                    count_mines += 1
-        return count_mines
-
     def count_mines_around(self):
         """
         Метод,який підраховує призначає кнопці цифру,яка є кількістю мін навколоно неї,сама
@@ -209,6 +191,42 @@ class MyWindow(MyButton, MinesMixin):
                 if not btn.IS_MINE:
                     count_mines = self.select_neighbours_for_ceil(i, j)
                     btn.count_mines = count_mines
+
+    def bypass_in_width(self, x, y, q):
+        """
+        Функція,яка здійснює обхід в ширину для кнопок і додає їх у чергу,якщо вони задовільняють
+         певну умову
+        """
+        for dx in MyWindow.POSSIBLE_COORDINATE_CHOICE:
+            for dy in MyWindow.POSSIBLE_COORDINATE_CHOICE:
+                next_button = self.buttons[x + dx][y + dy]
+                if not next_button.is_open and 1 <= next_button.x <= MyWindow.ROWS and \
+                        1 <= next_button.y <= MyWindow.COLUMNS and next_button not in q:
+                    q.append(next_button)
+
+    def select_neighbours_for_ceil(self, i: int, j: int, count_mines=0):
+        """
+        Метод,який здійснює підрахунок кількості мін навколо кожної кнопки
+        """
+        for row_dx in MyWindow.POSSIBLE_COORDINATE_CHOICE:
+            for col_dx in MyWindow.POSSIBLE_COORDINATE_CHOICE:
+                neighbour = self.buttons[i + row_dx][j + col_dx]
+                if neighbour.IS_MINE:
+                    count_mines += 1
+        return count_mines
+
+    def breadth_first_search(self, button):
+        queue = [button]
+        while queue:
+            current_button = queue.pop()
+            if current_button.count_mines:
+                self.get_colors_by_count_mines(current_button)
+            else:
+                current_button.config(text='')
+            self.get_button_config(current_button)
+            if not current_button.count_mines:
+                x, y = current_button.x, current_button.y
+                self.bypass_in_width(x, y, queue)
 
     def print_buttons_on_console(self):
         """
@@ -224,7 +242,8 @@ class MyWindow(MyButton, MinesMixin):
                     print(btn.count_mines, end=' ')
             print()
 
-    def start(self):
+    @staticmethod
+    def start():
         """
         Метод,який запускає всі потрібні методи
         """
@@ -252,34 +271,21 @@ class Menu(MyWindow):
         menu.add_cascade(label="Файл", menu=settings_menu)
 
 
-class Menu(MyWindow):
-
-    def create_menubar(self):
-        menubar = tk.Menu(self.win)
-        self.grid_menu(menubar)
-        self.settings_menu(menubar)
-
-    def grid_menu(self, menu):
-        self.win.config(menu=menu)
-
-    def settings_menu(self, menu):
-        settings_menu = tk.Menu(menu, tearoff=0)
-        labels = ("Нова гра", "Налаштування", "Вихід")
-        settings_menu.add_command(label=labels[0], command=MenuCommands().reload)
-        settings_menu.add_command(label=labels[1], command=MenuCommands().create_settings_window)
-        settings_menu.add_command(label=labels[2], command=self.win.destroy)
-
-        menu.add_cascade(label="Файл", menu=settings_menu)
-
-
 class MenuCommands(Menu):
 
     def create_settings_window(self):
+        """
+        Метод,який створює меню Налаштування, у якому створюються
+        """
         windows_settings = tk.Toplevel(self.win)
         windows_settings.wm_title("Налаштування")
         self.grid_entries(windows_settings)
 
     def grid_entries(self, win_settings: callable):
+        """
+        Метод,який розміщує кнопки в меню Налаштувань і прикріпляє і надає користувачу
+        можливість задати власну кількість мін, рядків і стовпчиків на ігровому полі
+        """
         titles_for_labels = ("Кількість рядків:", "Кількість стовпчиків:", "Кількість мін:")
         values_for_insert = (MyWindow.ROWS, MyWindow.COLUMNS, MyWindow.COUNT_MINES)
         keys_to_dict = ('row', 'column', 'mines')
@@ -295,6 +301,11 @@ class MenuCommands(Menu):
         button.grid(row=3, column=0, columnspan=2, padx=20, pady=20)
 
     def change_settings(self, row, column, mines):
+        """
+        Метод для зміни налаштувань гри.
+        Користувач може задати кількість мін, яку потрібно згенерувати, кількість рядків
+        і стовпчиків на ігровому вікні
+        """
         try:
             list(map(int, (row.get(), column.get(), mines.get())))
         except ValueError:
@@ -303,20 +314,28 @@ class MenuCommands(Menu):
         MyWindow.ROWS = int(row.get())
         MyWindow.COLUMNS = int(column.get())
         MyWindow.COUNT_MINES = int(mines.get())
-        if MyWindow.COUNT_MINES > (MyWindow.ROWS * MyWindow.COLUMNS) - 5:
-            return showerror("Помилка!", "Введена надто велика кількість мін")
-        check_value_less_60 = MyWindow.ROWS > 60 or MyWindow.COLUMNS > 60
-        check_value_more_5 = MyWindow.ROWS < 5 or MyWindow.COLUMNS < 5
-        if check_value_less_60 or check_value_more_5:
-            return showerror("Помилка!", "Надто велике або надто маленьке значення рядків і "
-                                         "стовпчиків, значення повинно бути в діапазоні 5 - 60")
+        max_count_mines = (MyWindow.ROWS * MyWindow.COLUMNS) - 5
+        self.check_count_mines(MyWindow.COUNT_MINES, max_count_mines)
+        self.check_input_values(MyWindow.ROWS, MyWindow.COLUMNS)
         self.reload()
 
     @staticmethod
-    def create_buttons(window: callable, text: str, command: callable):
-        return tk.Button(window, text=text, command=command)
+    def check_input_values(rows: int, columns: int):
+        """
+        Метод, який валідує дані, введені користувачем в налаштуваннях гри,
+        перевіряє задану кількість рядків на ігровому полі(5-60) і стовпчиків(5-60)
+        """
+        check_value_less_60 = rows > 60 or columns > 60
+        check_value_more_5 = rows < 5 or columns < 5
+        if check_value_less_60 or check_value_more_5:
+            return showerror('Помилка!', 'Надто велике або надто мале значення рядків і '
+                                         'стовпчиків,значення повинне бути в діапазоні 5 - 60')
 
     def reload(self):
+        """
+        Метод для перезавантаження кнопок на ігровому полі
+        Очищає старе ігрове поле і розміщує кнопки заново, призначаючи міни і нумеруючи їх
+        """
         [child.destroy() for child in self.win.winfo_children()]
         super().__init__()
         GridButtons().grid_buttons()
@@ -342,12 +361,15 @@ class GridButtons(MyWindow):
 
     def grid_freeze_buttons_rows(self):
         """
-        Задає сталий розмір кнопки,незалежно від розміру вікна
+        Задає сталий розмір кнопки відносно вісі x
         """
         for i in range(1, MyWindow.ROWS + 1):
             tk.Grid.rowconfigure(self.win, i, weight=1)
 
     def grid_freeze_buttons_columns(self):
+        """
+        Задає сталий розмір кнопки відносно вісі y
+        """
         for i in range(1, MyWindow.COLUMNS + 1):
             tk.Grid.columnconfigure(self.win, i, weight=1)
 
