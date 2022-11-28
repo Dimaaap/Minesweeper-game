@@ -28,21 +28,11 @@ class MinesMixin:
         showinfo('Game Over!', 'Ви програли')
         self.show_all_mines()
 
-    @staticmethod
-    def check_count_mines(count: int, value: int):
-        """
-        Метод, який перевіряє кількість мін, введених користувачем, мін не може бути більше, ніж
-        аргумент value
-        """
-        if count > value:
-            return showerror('Помилка!', "Введена надто велика кількість мін")
-
     def show_all_mines(self):
         """
         Метод,який у випадку поразки,тобто натискання кнопку із міною прказує всі кнопки,
         на яких розташовулися міни
         """
-        print('asadsadas')
         for i in range(1, MyWindow.ROWS + 1):
             for j in range(1, MyWindow.COLUMNS + 1):
                 button = self.buttons[i][j]
@@ -231,7 +221,6 @@ class MyWindow(MyButton, MinesMixin):
     def print_buttons_on_console(self):
         """
         Метод,який друкує список кнопок у консолі для зручності роботи з ними
-        :return:
         """
         for i in range(1, MyWindow.ROWS + 1):
             for j in range(1, MyWindow.COLUMNS + 1):
@@ -320,6 +309,17 @@ class MenuCommands(Menu):
         self.reload()
 
     @staticmethod
+    def check_count_mines(count: int, value: int):
+        """
+        Метод, який перевіряє кількість мін, введених користувачем, мін не може бути більше, ніж
+        аргумент value
+        """
+        if isinstance(count, int) and isinstance(value, int):
+            if count > value:
+                return showerror('Помилка!', "Введена надто велика кількість мін")
+        return showerror('Помилка!', 'Значення повинне бути цілим числом')
+
+    @staticmethod
     def check_input_values(rows: int, columns: int):
         """
         Метод, який валідує дані, введені користувачем в налаштуваннях гри,
@@ -374,5 +374,5 @@ class GridButtons(MyWindow):
             tk.Grid.columnconfigure(self.win, i, weight=1)
 
 
-a = MyWindow()
-a.start()
+#a = MyWindow()
+#a.start()
