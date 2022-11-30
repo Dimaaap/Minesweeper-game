@@ -1,98 +1,12 @@
-from abc import abstractmethod
-from random import shuffle
 import tkinter as tk
 from tkinter.messagebox import showinfo, showerror
+
+from buttons import MyButton
+from mixins import MinesMixin
 
 colors = {0: 'white', 1: 'blue', 2: 'green', 3: 'yellow', 4: 'purple', 5: 'grey', 6: 'black',
           7: 'red',
           }
-
-
-class MinesMixin:
-
-    def get_mines(self, button_number: int, buttons: list):
-        numbers_list = self.take_mines(button_number)
-        for row_buttons in range(1, MyWindow.ROWS + 1):
-            for button in range(1, MyWindow.COLUMNS + 1):
-                btn = buttons[row_buttons][button]
-                if btn.number in numbers_list:
-                    btn.IS_MINE = True
-
-    @staticmethod
-    def show_all_mines(buttons):
-        for i in range(1, MyWindow.ROWS + 1):
-            for j in range(1, MyWindow.COLUMNS + 1):
-                button = buttons[i][j]
-                # if button.IS_MINE:
-                if button.IS_MINE:
-                    button['text'] = '*'
-                    button.config(text='*')
-
-    @staticmethod
-    def get_colors_by_count_mines(button: callable):
-        color = colors[button.count_mines]
-        button.config(text=button.count_mines, disabledforeground=color)
-        if not button.is_open:
-            button.is_open = True
-
-    @staticmethod
-    def take_mines(exclude_number: int):
-        numbers_list = list(range(1, MyWindow.ROWS * MyWindow.COLUMNS + 1))
-        numbers_list.remove(exclude_number)
-        shuffle(numbers_list)
-        return numbers_list[:MyWindow.COUNT_MINES]
-
-
-class MyButton(tk.Button, MinesMixin):
-
-    def __init__(self, master, x: int, y: int, number: int = 0, *args, **kwargs):
-        super(MyButton, self).__init__(master, width=3, font='Arial 15', *args, **kwargs)
-        self.x = x
-        self.y = y
-        self.number = number
-        self.IS_MINE = False
-        self.count_mines = 0
-        self.is_open = False
-        self.buttons = []
-
-    def click_button(self, clicked_button, game_over: bool, first_click):
-        if game_over:
-            return
-        if first_click:
-            self.button_first_click(clicked_button)
-        if clicked_button.IS_MINE:
-            self.button_is_mine(clicked_button)
-        else:
-            if clicked_button.count_mines:
-                self.get_colors_by_count_mines(clicked_button)
-            else:
-                self.breadth_first_search(clicked_button)
-        self.get_button_config(clicked_button)
-
-    @staticmethod
-    def create_buttons(window: callable, text: str, command: callable):
-        return tk.Button(window, text=text, command=command)
-
-    @staticmethod
-    def get_button_config(button, state: str = 'disabled', relief: callable = tk.SUNKEN):
-        button.is_open = True
-        button.config(state=state)
-        button.config(relief=relief)
-
-    @abstractmethod
-    def button_first_click(self, clicked_button):
-        pass
-
-    @abstractmethod
-    def breadth_first_search(self, clicked_button):
-        pass
-
-    @abstractmethod
-    def button_is_mine(self, button):
-        pass
-
-    def __repr__(self):
-        return f'Button {self.x} {self.y} {self.IS_MINE} {self.number}'
 
 
 class MyWindow(MyButton, MinesMixin):
@@ -143,10 +57,11 @@ class MyWindow(MyButton, MinesMixin):
         button.is_open = True
         MyWindow.IS_GAME_OVER = True
         showinfo('Game Over!', 'Ви програли')
-        self.show_all_mines(self.buttons)
+        self.show_all_mines(self.buttons, MyWindow.ROWS, MyWindow.COLUMNS)
 
     def button_first_click(self, button):
-        self.get_mines(button.number, self.buttons)
+        self.get_mines(button.number, self.buttons, MyWindow.COUNT_MINES,
+                       MyWindow.ROWS, MyWindow.COLUMNS)
         self.count_mines_around()
         self.print_buttons_on_console()
         MyWindow.IS_FIRST_CLICK = False
@@ -237,6 +152,37 @@ class Menu(MyWindow):
         menu.add_cascade(label="Файл", menu=settings_menu)
 
 
+class GridButtons(MyWindow):
+    def grid_buttons(self):
+        """
+        Метод для розміщення кнопок на діалоговому вікні
+        """
+        Menu().create_menubar()
+        count = 1
+        for i in range(1, MyWindow.ROWS + 1):
+            for j in range(1, MyWindow.COLUMNS + 1):
+                button = self.buttons[i][j]
+                button.number = count
+                button.grid(row=i, column=j, stick='NWES')
+                count += 1
+        self.grid_freeze_buttons_rows()
+        self.grid_freeze_buttons_columns()
+
+    def grid_freeze_buttons_rows(self):
+        """
+        Задає сталий розмір кнопки відносно вісі x
+        """
+        for i in range(1, MyWindow.ROWS + 1):
+            tk.Grid.rowconfigure(self.win, i, weight=1)
+
+    def grid_freeze_buttons_columns(self):
+        """
+        Задає сталий розмір кнопки відносно вісі y
+        """
+        for i in range(1, MyWindow.COLUMNS + 1):
+            tk.Grid.columnconfigure(self.win, i, weight=1)
+
+
 class MenuCommands(Menu):
 
     def create_settings_window(self):
@@ -294,7 +240,6 @@ class MenuCommands(Menu):
         if isinstance(count, int) and isinstance(value, int):
             if count > value:
                 return showerror('Помилка!', "Введена надто велика кількість мін")
-        return showerror('Помилка!', 'Значення повинне бути цілим числом')
 
     @staticmethod
     def check_input_values(rows: int, columns: int):
@@ -318,37 +263,6 @@ class MenuCommands(Menu):
         GridButtons().grid_buttons()
         MyWindow.IS_FIRST_CLICK = True
         MyWindow.IS_GAME_OVER = False
-
-
-class GridButtons(MyWindow):
-    def grid_buttons(self):
-        """
-        Метод для розміщення кнопок на діалоговому вікні
-        """
-        Menu().create_menubar()
-        count = 1
-        for i in range(1, MyWindow.ROWS + 1):
-            for j in range(1, MyWindow.COLUMNS + 1):
-                button = self.buttons[i][j]
-                button.number = count
-                button.grid(row=i, column=j, stick='NWES')
-                count += 1
-        self.grid_freeze_buttons_rows()
-        self.grid_freeze_buttons_columns()
-
-    def grid_freeze_buttons_rows(self):
-        """
-        Задає сталий розмір кнопки відносно вісі x
-        """
-        for i in range(1, MyWindow.ROWS + 1):
-            tk.Grid.rowconfigure(self.win, i, weight=1)
-
-    def grid_freeze_buttons_columns(self):
-        """
-        Задає сталий розмір кнопки відносно вісі y
-        """
-        for i in range(1, MyWindow.COLUMNS + 1):
-            tk.Grid.columnconfigure(self.win, i, weight=1)
 
 
 a = MyWindow()
