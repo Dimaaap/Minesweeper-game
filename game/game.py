@@ -1,7 +1,7 @@
+from abc import abstractmethod
+from random import shuffle
 import tkinter as tk
 from tkinter.messagebox import showinfo, showerror
-from random import shuffle
-from abc import ABC, abstractmethod
 
 colors = {0: 'white', 1: 'blue', 2: 'green', 3: 'yellow', 4: 'purple', 5: 'grey', 6: 'black',
           7: 'red',
@@ -9,55 +9,34 @@ colors = {0: 'white', 1: 'blue', 2: 'green', 3: 'yellow', 4: 'purple', 5: 'grey'
 
 
 class MinesMixin:
-    buttons = []
+
+    def get_mines(self, button_number: int, buttons: list):
+        numbers_list = self.take_mines(button_number)
+        for row_buttons in range(1, MyWindow.ROWS + 1):
+            for button in range(1, MyWindow.COLUMNS + 1):
+                btn = buttons[row_buttons][button]
+                if btn.number in numbers_list:
+                    btn.IS_MINE = True
 
     @staticmethod
-    def get_colors_by_count_mines(button):
+    def show_all_mines(buttons):
+        for i in range(1, MyWindow.ROWS + 1):
+            for j in range(1, MyWindow.COLUMNS + 1):
+                button = buttons[i][j]
+                # if button.IS_MINE:
+                if button.IS_MINE:
+                    button['text'] = '*'
+                    button.config(text='*')
+
+    @staticmethod
+    def get_colors_by_count_mines(button: callable):
         color = colors[button.count_mines]
         button.config(text=button.count_mines, disabledforeground=color)
         if not button.is_open:
             button.is_open = True
 
-    def button_is_mine(self, button):
-        """
-        Метод.який виконується, якщо параметр кнопки IS_MINE встановлений в True
-        """
-        button.config(text='*', background='red', disabledforeground='black')
-        button.is_open = True
-        MyWindow.IS_GAME_OVER = True
-        showinfo('Game Over!', 'Ви програли')
-        self.show_all_mines()
-
-    def show_all_mines(self):
-        """
-        Метод,який у випадку поразки,тобто натискання кнопку із міною прказує всі кнопки,
-        на яких розташовулися міни
-        """
-        for i in range(1, MyWindow.ROWS + 1):
-            for j in range(1, MyWindow.COLUMNS + 1):
-                button = self.buttons[i][j]
-                if button.IS_MINE:
-                    button['text'] = '*'
-                    button.config(text='*')
-
-    def get_mines(self, button_number: int):
-        """
-        Визначає перемішаний список номерів кнопок, і, якщо номер кнопки у тому списку,
-        робить її міною
-        """
-        numbers_list = self.take_mines(button_number)
-        for row_buttons in range(1, MyWindow.ROWS + 1):
-            for button in range(1, MyWindow.COLUMNS + 1):
-                btn = self.buttons[row_buttons][button]
-                if btn.number in numbers_list:
-                    btn.IS_MINE = True
-
     @staticmethod
     def take_mines(exclude_number: int):
-        """
-        Статичний метод,який формує список порядкових номерів кнопок,випадково перемішує його
-        і повертає перші COUNT_MINES елементів цбого списку
-        """
         numbers_list = list(range(1, MyWindow.ROWS * MyWindow.COLUMNS + 1))
         numbers_list.remove(exclude_number)
         shuffle(numbers_list)
@@ -65,16 +44,8 @@ class MinesMixin:
 
 
 class MyButton(tk.Button, MinesMixin):
-    """
-    Клас,який перевизначає вбудований клас Button
-    """
 
     def __init__(self, master, x: int, y: int, number: int = 0, *args, **kwargs):
-        """
-        При створенні кнопки будуть визначатись параметри х - рядок у двомірному списку,у
-        якому знаходиться кнопка,у - стовпчик,у якому знаходиться кнопка,number - порядковий номер
-        кнопки,унікальний для кожної кнопки,IS_MINE - чи є кнопка міною,чи ні
-        """
         super(MyButton, self).__init__(master, width=3, font='Arial 15', *args, **kwargs)
         self.x = x
         self.y = y
@@ -84,10 +55,10 @@ class MyButton(tk.Button, MinesMixin):
         self.is_open = False
         self.buttons = []
 
-    def click_button(self, clicked_button):
-        if MyWindow.IS_GAME_OVER:
+    def click_button(self, clicked_button, game_over: bool, first_click):
+        if game_over:
             return
-        if MyWindow.IS_FIRST_CLICK:
+        if first_click:
             self.button_first_click(clicked_button)
         if clicked_button.IS_MINE:
             self.button_is_mine(clicked_button)
@@ -99,6 +70,10 @@ class MyButton(tk.Button, MinesMixin):
         self.get_button_config(clicked_button)
 
     @staticmethod
+    def create_buttons(window: callable, text: str, command: callable):
+        return tk.Button(window, text=text, command=command)
+
+    @staticmethod
     def get_button_config(button, state: str = 'disabled', relief: callable = tk.SUNKEN):
         button.is_open = True
         button.config(state=state)
@@ -108,13 +83,13 @@ class MyButton(tk.Button, MinesMixin):
     def button_first_click(self, clicked_button):
         pass
 
-    @staticmethod
-    def create_buttons(window: callable, text: str, command: callable):
-        """
-        Метод, який створює об'єкт 'кнопка', задаючи їх вікно, на якому її потрібно розмістити,
-        текст, який буде написаний на ній і метод,який буде спрацьовувати при натисканні на неї
-        """
-        return tk.Button(window, text=text, command=command)
+    @abstractmethod
+    def breadth_first_search(self, clicked_button):
+        pass
+
+    @abstractmethod
+    def button_is_mine(self, button):
+        pass
 
     def __repr__(self):
         return f'Button {self.x} {self.y} {self.IS_MINE} {self.number}'
@@ -135,14 +110,17 @@ class MyWindow(MyButton, MinesMixin):
     def __init__(self):
         """
         При ініціалізації класу буде створюватись двохмірний список, який містить
-        кнопки,масив складається із ROWS рядків і COLUMNS стовпчиків
+        кнопки, масив складається із ROWS рядків і COLUMNS стовпчиків
         """
         self.buttons = []
         for i in range(MyWindow.ROWS + 2):
             temp_list = []
             for j in range(MyWindow.COLUMNS + 2):
                 button = MyButton(MyWindow.win, x=i, y=j)
-                button.config(command=lambda btn=button: self.click_button(btn))
+                button.config(command=lambda btn=button: self.click_button(btn,
+                                                                           MyWindow.IS_GAME_OVER,
+                                                                           MyWindow.IS_FIRST_CLICK
+                                                                           ))
                 button.bind("<Button-3>", self.right_click)
                 temp_list.append(button)
             self.buttons.append(temp_list)
@@ -160,21 +138,20 @@ class MyWindow(MyButton, MinesMixin):
             current_button['text'] = ''
             current_button['state'] = 'normal'
 
+    def button_is_mine(self, button: callable):
+        button.config(text='*', background='red', disabledforeground='black')
+        button.is_open = True
+        MyWindow.IS_GAME_OVER = True
+        showinfo('Game Over!', 'Ви програли')
+        self.show_all_mines(self.buttons)
+
     def button_first_click(self, button):
-        """
-        Метод,який виконується,якщо параметр кнопки button IS_FIRST_CLICK
-        встановлений в True
-        """
-        self.get_mines(button.number)
+        self.get_mines(button.number, self.buttons)
         self.count_mines_around()
         self.print_buttons_on_console()
         MyWindow.IS_FIRST_CLICK = False
 
     def count_mines_around(self):
-        """
-        Метод,який підраховує призначає кнопці цифру,яка є кількістю мін навколоно неї,сама
-        кількість рахується в методі select_neighbours_for_ceil
-        """
         for i in range(1, MyWindow.ROWS + 1):
             for j in range(1, MyWindow.COLUMNS + 1):
                 btn = self.buttons[i][j]
@@ -374,5 +351,5 @@ class GridButtons(MyWindow):
             tk.Grid.columnconfigure(self.win, i, weight=1)
 
 
-#a = MyWindow()
-#a.start()
+a = MyWindow()
+a.start()
