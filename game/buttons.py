@@ -1,7 +1,7 @@
 import tkinter as tk
 from abc import abstractmethod
 
-from mixins import MinesMixin
+from .mixins import MinesMixin
 
 
 class MyButton(tk.Button, MinesMixin):

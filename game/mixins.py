@@ -35,7 +35,10 @@ class MinesMixin:
 
     @staticmethod
     def take_mines(exclude_number: int, count_mines, rows: int = 10, columns: int = 10):
-        numbers_list = list(range(1, rows * columns + 1))
-        numbers_list.remove(exclude_number)
-        shuffle(numbers_list)
-        return numbers_list[:count_mines]
+        if isinstance(count_mines, int) and isinstance(rows, int) and isinstance(columns, int):
+            numbers_list = list(range(1, abs(rows) * abs(columns) + 1))
+            numbers_list.remove(abs(exclude_number))
+            shuffle(numbers_list)
+            return numbers_list[:abs(count_mines)]
+        else:
+            raise TypeError('Передані значення повинні бути цілими числами')

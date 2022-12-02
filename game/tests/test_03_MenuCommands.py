@@ -1,8 +1,6 @@
-import tkinter.messagebox
-
 import pytest
 
-from game import *
+from ..game import MenuCommands, MyWindow
 
 
 @pytest.mark.parametrize('rows, columns', [(20, 20),
@@ -47,20 +45,3 @@ def test_check_count_mines_valid(count, value):
 @pytest.mark.xfail
 def test_check_count_mines_invalid(count, value):
     assert count < value
-
-
-def test_check_mines_invalid_value():
-    str_attrs = MenuCommands.check_count_mines('2', '3')
-    assert str_attrs == tkinter.messagebox.showerror()
-
-
-@pytest.mark.parametrize('count, value', [
-    ([1, 2, 3], 24),
-    ('23', 3),
-    (3, '23'),
-    (24, 24.0),
-    ((2, 3, 4), {1, 2, 3})
-])
-def test_check_mines_invalid_value_second(count, value):
-    str_attrs = MenuCommands.check_count_mines(count, value)
-    assert str_attrs == tkinter.messagebox.showerror()
